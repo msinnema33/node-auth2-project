@@ -1,8 +1,9 @@
 const bcrypt = require("bcryptjs");
-
+const jwt = require('jsonwebtoken');
 const router = require("express").Router();
 
 const Users = require("../users/users-model.js");
+const secrets = require('../config/secrets.js');
 
 router.post("/register", (req, res) => {
   const userInfo = req.body;
@@ -26,13 +27,11 @@ router.post("/login", (req, res) => {
   Users.findBy({ username })
     .then(([user]) => {
       if (user && bcrypt.compareSync(password, user.password)) {
-        // remember this client
-        req.session.user = {
-          id: user.id,
-          username: user.username,
-        };
-
-        res.status(200).json({ hello: user.username });
+        const token = generateToken(user);
+        // req.session.user = {
+        //   id: user.id,
+        //   username: user.username,
+        res.status(200).json({ message: `Welcome ${user.username}!, have a token ....`})
       } else {
         res.status(401).json({ message: "invalid credentials" });
       }
@@ -41,6 +40,17 @@ router.post("/login", (req, res) => {
       res.status(500).json({ errorMessage: "error finding the user" });
     });
 });
+
+function generateToken(user) {
+  const payload = {
+    subject: user.id,
+    username: user.username,
+  };
+  const options = {
+    expiresIn: '1d',
+  };
+  return jwt.sign(payload, secrets.jwtSecret, options);
+}
 
 router.get("/logout", (req, res) => {
   if (req.session) {
